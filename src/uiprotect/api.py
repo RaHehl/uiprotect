@@ -24,7 +24,7 @@ import aiohttp
 import orjson
 from aiofiles import os as aos
 from aiohttp import CookieJar, client_exceptions
-from platformdirs import user_cache_dir, user_config_dir
+from platformdirs import user_config_dir
 from yarl import URL
 
 from uiprotect.data.convert import list_from_unifi_list
@@ -179,7 +179,6 @@ class BaseApiClient:
     api_path: str = "/proxy/protect/api/"
     ws_path: str = "/proxy/protect/ws/updates"
 
-    cache_dir: Path
     config_dir: Path
     store_sessions: bool
 
@@ -192,7 +191,6 @@ class BaseApiClient:
         verify_ssl: bool = True,
         session: aiohttp.ClientSession | None = None,
         ws_timeout: int = 30,
-        cache_dir: Path | None = None,
         config_dir: Path | None = None,
         store_sessions: bool = True,
         ws_receive_timeout: int | None = None,
@@ -210,7 +208,6 @@ class BaseApiClient:
         self._update_task: asyncio.Task[Bootstrap | None] | None = None
 
         self.config_dir = config_dir or (Path(user_config_dir()) / "ufp")
-        self.cache_dir = cache_dir or (Path(user_cache_dir()) / "ufp_cache")
         self.store_sessions = store_sessions
 
         if session is not None:
@@ -757,7 +754,6 @@ class ProtectApiClient(BaseApiClient):
         verify_ssl: bool = True,
         session: aiohttp.ClientSession | None = None,
         ws_timeout: int = 30,
-        cache_dir: Path | None = None,
         config_dir: Path | None = None,
         store_sessions: bool = True,
         override_connection_host: bool = False,
@@ -777,7 +773,6 @@ class ProtectApiClient(BaseApiClient):
             session=session,
             ws_timeout=ws_timeout,
             ws_receive_timeout=ws_receive_timeout,
-            cache_dir=cache_dir,
             config_dir=config_dir,
             store_sessions=store_sessions,
         )
