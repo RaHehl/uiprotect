@@ -24,7 +24,6 @@ import aiohttp
 import orjson
 from aiofiles import os as aos
 from aiohttp import CookieJar, client_exceptions
-from platformdirs import user_config_dir
 from yarl import URL
 
 from uiprotect.data.convert import list_from_unifi_list
@@ -179,9 +178,6 @@ class BaseApiClient:
     api_path: str = "/proxy/protect/api/"
     ws_path: str = "/proxy/protect/ws/updates"
 
-    config_dir: Path
-    store_sessions: bool
-
     def __init__(
         self,
         host: str,
@@ -191,7 +187,6 @@ class BaseApiClient:
         verify_ssl: bool = True,
         session: aiohttp.ClientSession | None = None,
         ws_timeout: int = 30,
-        config_dir: Path | None = None,
         store_sessions: bool = True,
         ws_receive_timeout: int | None = None,
     ) -> None:
@@ -207,7 +202,6 @@ class BaseApiClient:
         self._loaded_session = False
         self._update_task: asyncio.Task[Bootstrap | None] | None = None
 
-        self.config_dir = config_dir or (Path(user_config_dir()) / "ufp")
         self.store_sessions = store_sessions
 
         if session is not None:
@@ -241,10 +235,6 @@ class BaseApiClient:
     def ws_url(self) -> str:
         """Get Websocket URL."""
         return str(self._ws_url_object)
-
-    @property
-    def config_file(self) -> Path:
-        return self.config_dir / "unifi_protect.json"
 
     async def get_session(self) -> aiohttp.ClientSession:
         """Gets or creates current client session"""
@@ -567,87 +557,10 @@ class BaseApiClient:
                 await self._update_auth_config(self._last_token_cookie)
             self._last_token_cookie_decode = None
 
-    async def _update_auth_config(self, cookie: Morsel[str]) -> None:
-        """Updates auth cookie on disk for persistent sessions."""
-        if self._last_token_cookie is None:
-            return
-
-        await aos.makedirs(self.config_dir, exist_ok=True)
-
-        config: dict[str, Any] = {}
-        session_hash = get_user_hash(str(self._url), self._username)
-        try:
-            async with aiofiles.open(self.config_file, "rb") as f:
-                config_data = await f.read()
-                if config_data:
-                    try:
-                        config = orjson.loads(config_data)
-                    except Exception:
-                        _LOGGER.warning("Invalid config file, ignoring.")
-        except FileNotFoundError:
-            pass
-
-        config["sessions"] = config.get("sessions", {})
-        config["sessions"][session_hash] = {
-            "metadata": dict(cookie),
-            "cookiename": self._cookiename,
-            "value": cookie.value,
-            "csrf": self.headers.get("x-csrf-token") if self.headers else None,
-        }
-
-        async with aiofiles.open(self.config_file, "wb") as f:
-            await f.write(orjson.dumps(config, option=orjson.OPT_INDENT_2))
-
     async def _load_session(self) -> None:
         if self._session is None:
             await self.get_session()
             assert self._session is not None
-
-        if not self._loaded_session and self.store_sessions:
-            session_cookie = await self._read_auth_config()
-            self._loaded_session = True
-            if session_cookie:
-                _LOGGER.debug("Successfully loaded session from config")
-                self._session.cookie_jar.update_cookies(session_cookie)
-
-    async def _read_auth_config(self) -> SimpleCookie | None:
-        """Read auth cookie from config."""
-        config: dict[str, Any] = {}
-        try:
-            async with aiofiles.open(self.config_file, "rb") as f:
-                config_data = await f.read()
-                if config_data:
-                    try:
-                        config = orjson.loads(config_data)
-                    except Exception:
-                        _LOGGER.warning("Invalid config file, ignoring.")
-                        return None
-        except FileNotFoundError:
-            _LOGGER.debug("no config file, not loading session")
-            return None
-
-        session_hash = get_user_hash(str(self._url), self._username)
-        session = config.get("sessions", {}).get(session_hash)
-        if not session:
-            _LOGGER.debug("No existing session for %s", session_hash)
-            return None
-
-        cookie = SimpleCookie()
-        cookie_name = session.get("cookiename")
-        if cookie_name is None:
-            return None
-        cookie[cookie_name] = session.get("value")
-        for key, value in session.get("metadata", {}).items():
-            cookie[cookie_name][key] = value
-
-        cookie_value = _COOKIE_RE.sub("", str(cookie[cookie_name]))
-        self._last_token_cookie = cookie[cookie_name]
-        self._last_token_cookie_decode = None
-        self._is_authenticated = True
-        self.set_header("cookie", cookie_value)
-        if session.get("csrf"):
-            self.set_header("x-csrf-token", session["csrf"])
-        return cookie
 
     def is_authenticated(self) -> bool:
         """Check to see if we are already authenticated."""
@@ -754,7 +667,6 @@ class ProtectApiClient(BaseApiClient):
         verify_ssl: bool = True,
         session: aiohttp.ClientSession | None = None,
         ws_timeout: int = 30,
-        config_dir: Path | None = None,
         store_sessions: bool = True,
         override_connection_host: bool = False,
         minimum_score: int = 0,
@@ -773,7 +685,6 @@ class ProtectApiClient(BaseApiClient):
             session=session,
             ws_timeout=ws_timeout,
             ws_receive_timeout=ws_receive_timeout,
-            config_dir=config_dir,
             store_sessions=store_sessions,
         )
 
