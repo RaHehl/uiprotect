@@ -1024,6 +1024,24 @@ files = [
 pypi = ["pip (>=24.0)", "platformdirs (>=4.2)", "wheel (>=0.42)"]
 
 [[package]]
+name = "http-sfv"
+version = "0.9.9"
+description = "Parse and serialise HTTP Structured Field Values"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "http_sfv-0.9.9-py3-none-any.whl", hash = "sha256:5feed51c90e9a1dc797701662d044d936923cf0027255c75452b8240e33d6c82"},
+    {file = "http_sfv-0.9.9.tar.gz", hash = "sha256:e132dc9bef990832bc01824f5fa9d4efc7d0f4271e4b227db35c8ef38540c739"},
+]
+
+[package.dependencies]
+typing-extensions = "*"
+
+[package.extras]
+dev = ["black", "mypy"]
+
+[[package]]
 name = "identify"
 version = "2.6.15"
 description = "File identification library for Python"
@@ -3359,4 +3377,4 @@ cli = ["dateparser", "pillow", "rich", "typer"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "940797000a8c7d17c4feede2ff92a4fde08049ea844375dff55e53e813ea7012"
+content-hash = "10c4f740cc9da786defaf2ef50e6f8e12894781e8b1afb5c5d06308106fbdab3"
